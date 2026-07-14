@@ -11,7 +11,7 @@ router.get("/getUserByjwt", verifyToken, getUserByjwt);
 router.get("/:id/friends", verifyToken, getUserFriends);
 router.get('/searchUsers',verifyToken,searchUsers);
 router.get("/getUserObjId/:id", getUserObjId);
-router.get("/getAllUsers", getAllUsers);
+router.get("/getAllUsers", verifyToken, getAllUsers);
 router.get('/friends/search', verifyToken, searchFriends);
 router.post("/setCodeforcesHandle/:handle", verifyToken, setCodeforcesHandle);
 

@@ -16,7 +16,7 @@ const User =  require("../models/user.js");
 // };
  const getAllUsers = async (req, res) => {
     try {
-      const users = await User.find({});
+      const users = await User.find({}).select('-password');
       res.status(200).json(users);
     } catch (err) {
       res.status(404).json({ message: err.message });
@@ -40,7 +40,7 @@ const searchUsers=async (req, res) => {
               { firstName: searchRegex },
               { lastName: searchRegex }
           ]
-      });
+      }).select('-password');
 
       // Return the found users
       res.json(users);
@@ -202,7 +202,7 @@ const searchFriends=async (req, res) => {
         { lastName: { $regex: q, $options: 'i' } },
         { email: { $regex: q, $options: 'i' } }
       ]
-    }).limit(10);
+    }).select('-password').limit(10);
     res.json(friends);
   } catch (error) {
     res.status(500).json({ message: error.message });
