@@ -7,10 +7,14 @@ import { authActions } from '../store/slices/authSlice.jsx';
 const UserCard = ({ user,setUser }) => {
   const dispatch = useDispatch();
   const loggedInUser = useSelector((state) => state.auth.user);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
   const [isFriend, setIsFriend] = useState(false); // Initialize isFriend state to false
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5555';
 
   useEffect(() => {
+    setPending(false);
+    setError('');
     if (user) {
       setIsFriend(user.friends.includes(loggedInUser?._id)); // Set isFriend based on user's friends list
     }
@@ -19,16 +23,18 @@ const UserCard = ({ user,setUser }) => {
   const handleAddRemoveFriend = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.patch(`${apiUrl}/api/user/${loggedInUser._id}/${user._id}`, {}, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      const updatedFriends = response.data.userFriends;
-      dispatch(authActions.updateLoggedInUserFriends({ updatedFriends })); // Update friends list in Redux state
-      setIsFriend(!isFriend); // Toggle friend status
+      setError('');
+      if (!isFriend) {
+        await axios.post(`${apiUrl}/api/user/requests/${user._id}`, {}, { headers: { Authorization: `Bearer ${token}` } });
+        setPending(true);
+        return;
+      }
+      const response = await axios.patch(`${apiUrl}/api/user/${loggedInUser._id}/${user._id}`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      dispatch(authActions.updateLoggedInUserFriends({ updatedFriends: response.data.userFriends }));
+      setUser({ ...user, friends: response.data.friendFriends });
+      setIsFriend(false);
     } catch (error) {
-      console.error('Error adding/removing friend:', error);
+      setError(error.response?.data?.message || error.message);
     }
   };
 
@@ -36,41 +42,6 @@ const UserCard = ({ user,setUser }) => {
     return null; // Or you could return some placeholder content or message
   }
 
-  return (
-    <div className="bg-white shadow-lg rounded-lg p-8 m-4 w-full max-w-4xl mx-auto transform transition-transform duration-300 flex flex-col items-center">
-      <div className="flex flex-col items-center w-full">
-        <img
-          className="rounded-full w-2/3 h-2/3 mb-4"
-          src={user.picturePath || "default-profile.png"}
-          alt={`${user.firstName} ${user.lastName}`}
-        />
-        <h2 className="text-4xl font-semibold text-center">
-          {user.firstName} {user.lastName}
-        </h2>
-        {loggedInUser?._id !== user?._id && ( // Show button only if the user is not the logged-in user
-          <button className={`mt-4 px-4 py-2 ${isFriend ? 'bg-red-500' : 'bg-green-500'} text-white rounded-md flex items-center`} onClick={handleAddRemoveFriend}>
-            {isFriend ? <FaUserMinus /> : <FaUserPlus />}
-          </button>
-        )}
-      </div>
-      <div className="mt-8 w-full text-center">
-        <p className="text-gray-600 mt-2">{user.email}</p>
-        {user.location && (
-          <p className="text-gray-600 mt-2">Location: {user.location}</p>
-        )}
-        {user?.occupation && (
-          <p className="text-gray-600 mt-2">Occupation: {user.occupation}</p>
-        )}
-        <p className="text-gray-600 mt-2">Friends: {user.friends?.length || 0}</p>
-        {typeof user.viewedProfile === 'number' && (
-          <p className="text-gray-600 mt-2">Viewed Profile: {user.viewedProfile}</p>
-        )}
-        {typeof user.impressions === 'number' && (
-          <p className="text-gray-600 mt-2">Impressions: {user.impressions}</p>
-        )}
-      </div>
-    </div>
-  );
+  return <section className="surface profile-card"><div className="profile-avatar">{user.firstName?.[0]}{user.lastName?.[0]}</div><p className="eyebrow">{user.codeForcesHandle || 'COMMUNITY MEMBER'}</p><h2>{user.firstName} {user.lastName}</h2><p className="muted">{user.occupation || 'Developer / Lifelong learner'}</p>{loggedInUser && loggedInUser._id !== user._id && <button className={`button ${isFriend ? 'button-subtle' : 'button-primary'}`} disabled={pending} onClick={handleAddRemoveFriend}>{isFriend ? 'Remove friend' : pending ? 'Request sent' : 'Send friend request'}</button>}{error && <p className="error-notice" role="alert">{error}</p>}<div className="profile-stats"><span><strong>{user.friends?.length || 0}</strong>Connections</span><span><strong>{user.codeForcesHandle ? 'Connected' : '-'}</strong>Codeforces</span></div><div className="profile-detail"><p>{user.email}</p>{user.location && <p>{user.location}</p>}<p>Here to build. Here to grow.</p></div></section>;
 };
-
 export default UserCard;

@@ -90,80 +90,27 @@ const getUserFriends = async (req, res) => {
 };
 
 /* UPDATE */
-// const addRemoveFriend = async (req, res) => {
-//   try {
-//     const { id, friendId } = req.params;
-//     const user = await User.findById(id);
-//     const friend = await User.findById(friendId);
-//     console.log(friend);
-//     if (user.friends.includes(friendId)) {
-//       user.friends = user.friends.filter((id) => id !== friendId);
-//       friend.friends = friend.friends.filter((id) => id !== id);
-//     } else {
-//       user.friends.push(friendId);
-//       friend.friends.push(id);
-//     }
-//     await user.save();
-//     await friend.save();
-
-//     const friends = await Promise.all(
-//       user.friends.map((id) => User.findById(id))
-//     );
-//     const formattedFriends = friends.map(
-//       ({ _id, firstName, lastName, occupation, location, picturePath }) => {
-//         return { _id, firstName, lastName, occupation, location, picturePath };
-//       }
-//     );
-
-//     res.status(200).json(formattedFriends);
-//   } catch (err) {
-//     res.status(404).json({ message: err.message  });
-    
-//   }
-// };
 const addRemoveFriend = async (req, res) => {
+  const { id, friendId } = req.params;
+  if (req.user.id !== id) return res.status(403).json({ message: 'You can only modify your own friend list' });
+  if (id === friendId) return res.status(400).json({ message: 'You cannot remove yourself' });
+  const session = await require('mongoose').startSession();
   try {
-    const { id, friendId } = req.params;
-
-    if (req.user.id !== id) {
-      return res.status(403).json({ message: "You can only modify your own friend list." });
-    }
-
-    if (id === friendId) {
-      return res.status(400).json({ message: "You cannot add/remove yourself." });
-    }
-
-    const user = await User.findById(id);
-    const friend = await User.findById(friendId);
-
-    if (!user || !friend) {
-      return res.status(404).json({ message: "User not found." });
-    }
-
-    // Check if the friend is already in the user's friend list
-    if (user.friends.includes(friendId)) {
-      // Remove friend from user's friend list
-      user.friends = user.friends.filter(id => id.toString() !== friendId);
-      // Remove user from friend's friend list
-      friend.friends = friend.friends.filter(fid => fid.toString() !== id);
-    } else {
-      // Add friend to user's friend list
-      user.friends.push(friendId);
-      // Add user to friend's friend list
-      friend.friends.push(id);
-    }
-
-    await user.save();
-    await friend.save();
-
-    res.status(200).json({ userFriends: user.friends, friendFriends: friend.friends });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+    let user, friend;
+    await session.withTransaction(async () => {
+      user = await User.findById(id).session(session);
+      friend = await User.findById(friendId).session(session);
+      if (!user || !friend) { const error = new Error('User not found'); error.status = 404; throw error; }
+      if (!user.friends.some(value => String(value) === friendId)) { const error = new Error('Send a friend request before adding a friend'); error.status = 400; throw error; }
+      await User.updateOne({ _id: id }, { $pull: { friends: friendId } }, { session });
+      await User.updateOne({ _id: friendId }, { $pull: { friends: id } }, { session });
+      user = await User.findById(id).session(session);
+      friend = await User.findById(friendId).session(session);
+    });
+    res.json({ userFriends: user.friends, friendFriends: friend.friends });
+  } catch (error) { res.status(error.status || 500).json({ message: error.message }); }
+  finally { await session.endSession(); }
 };
-
-
-
 
 const setCodeforcesHandle = async (req, res) => {
   try {

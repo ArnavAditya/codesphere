@@ -13,10 +13,9 @@ const messageRoute = require("./routes/messageRoute.js");
 const cors = require("cors");
 const upload = require("./multer");
 const cloudinary = require("./cloudinary"); 
-const bodyParser = require("body-parser"); 
 const fs = require("fs"); 
 
-const port = process.env.PORT;
+const port = process.env.PORT || 5555;
 app.use(express.json());
 connectDatabase();
 app.use(cors());
@@ -26,6 +25,7 @@ app.use("/api/post",postRoute);
 app.use("/api/user",userRoute);
 app.use("/api/chat", chatRoute);
 app.use("/api/message", messageRoute);
+app.use("/api/code", require("./routes/codeRoute"));
 
 
 app.get("/", async (req,res ) => {
@@ -34,35 +34,23 @@ app.get("/", async (req,res ) => {
 
 ////////////////////////////////////////////////////
 
-app.use('/upload-images',upload.array('image'),async(req,res)=>{
-    const uploader=async(path)=>await cloudinary.uploads(path,'Image')
-    if(req.method==='POST')
-    {
-        const urls=[]
-        const files=req.files
+const { verifyToken } = require('./middleware/authMiddleware');
+const asyncHandler = require('express-async-handler');
+app.post('/upload-images', verifyToken, upload.array('image', 1), asyncHandler(async (req, res) => {
+  if (!req.files?.length) return res.status(400).json({ message: 'Choose an image' });
+  try {
+    const urls = await Promise.all(req.files.map(file => cloudinary.uploads(file.path, 'Image')));
+    res.json({ message: 'Image uploaded successfully', data: urls });
+  } finally {
+    await Promise.all(req.files.map(file => fs.promises.unlink(file.path).catch(() => {})));
+  }
+}));
 
-        for(const file of files){
-            const {path}=file 
-            const newPath=await uploader(path)
-            urls.push(newPath)
-            fs.unlinkSync(path)
-        }
-        res.status(200).json({
-            message:'Image Uploaded Successfully',
-            data:urls
-        })
-         
-    }
-    else{
-        res.status(405).json({
-            err:"Image not uploaded"
-        })
-    }
-})
-
-
-////////////////////////////////////////////////////
-
+app.use((error, req, res, next) => {
+  if (res.headersSent) return next(error);
+  const status = error.status || (res.statusCode >= 400 ? res.statusCode : 500);
+  res.status(error instanceof require('multer').MulterError ? 400 : status).json({ message: error.message });
+});
 
 const server = app.listen(
   port,
@@ -77,48 +65,5 @@ const io = require("socket.io")(server, {
   },
 });
 
-io.on("connection", (socket) => {
-    console.log("Connected to socket.io");
-    let userData;
-    socket.on("setup", (data) => {
-      userData = data;
-      socket.join(userData._id);
-      socket.emit("User Has Joined the room " + userData._id);
-    });
-  
-    socket.on("join chat", (room) => {
-      socket.join(room);
-      console.log("User Joined Room: " + room);
-    });
-    // socket.on("typing", (room) => socket.in(room).emit("typing"));
-    // socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
-  
-    socket.on("new message", (newMessageReceived) => {
-      var chat = newMessageReceived.chat;
-      console.log(" This message was recieved from Client Side -----> \n Sender is : " ,newMessageReceived.sender.firstName );
-      if (!chat.users) return console.log("chat.users not defined");
-      
-      chat.users.forEach((user) => {
-        if (user._id == newMessageReceived.sender._id) return;
-        console.log(" Emitting this message to this client ----> " , user );
-        socket.in(user).emit("message received", newMessageReceived);
-      });
-    });
-  
-    socket.on("disconnect", () => {
-      console.log("USER DISCONNECTED");
-      if (userData) socket.leave(userData._id);
-    });
-  });
-
-
-
-///////////////////////////////////////////////////
-
-
-
-// app.listen(port, ()=>{
-//     console.log(`listening to port : ${port} `);
-// })
-
-
+app.set('io', io);
+require('./socket')(io);

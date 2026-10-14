@@ -27,35 +27,6 @@ const Dashboard = () => {
     fetchUser();
   }, [id]);
 
-  return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <h1 className="text-4xl font-bold text-center mb-8">User Dashboard</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="col-span-full md:col-span-1 lg:col-span-1 flex justify-center">
-          <UserCard user={user} setUser={setUser} />
-        </div>
-        
-        <div className="col-span-full md:col-span-2 lg:col-span-2">
-          <div className="flex flex-wrap justify-center gap-6">
-            <RatingChart user={user}/>
-          </div>
-          <div className="flex flex-wrap justify-center gap-6">
-            <TagPieChart user={user}/>
-          </div>
-          <div className="flex flex-wrap justify-center gap-6">
-            <RatVsProb user={user}/>
-          </div>
-        </div>
-      </div>
-
-      {user && loggedInUser && user._id === loggedInUser._id && !user.codeForcesHandle && (
-        <div className="mt-8 flex justify-center">
-          <AddForcesHandle />
-        </div>
-      )}
-    </div>
-  );
+  return <div className="page-shell"><div className="page-heading"><div><p className="eyebrow">DEVELOPER PROFILE</p><h1>A little progress, every day<span className="accent">.</span></h1><p className="muted">Your journey, visualized. Every problem is a step forward.</p></div><span className="status-pill"><span /> Codeforces insights</span></div><div className="profile-layout"><UserCard user={user} setUser={setUser} /><main className="charts-grid">{!user ? <div className="surface empty-state"><p>Loading profile...</p></div> : user.codeForcesHandle ? <><section className="surface chart-card"><p className="eyebrow">THE BIG PICTURE</p><h2>Rating over time</h2><RatingChart user={user} /></section><div className="chart-pair"><TagPieChart user={user} /><RatVsProb user={user} /></div></> : <section className="surface empty-state"><h2>Your next milestone awaits.</h2><p>Connect a Codeforces handle to see rating history, problem difficulty, and the topics you have explored.</p>{loggedInUser?._id === user._id && <AddForcesHandle />}</section>}</main></div></div>;
 };
-
 export default Dashboard;

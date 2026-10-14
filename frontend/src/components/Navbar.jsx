@@ -1,125 +1,45 @@
-
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux'; // Import useSelector and useDispatch
+import { useState, useEffect } from 'react';
+import { Link, NavLink } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import { FiSearch, FiGrid, FiMessageSquare, FiCode, FiLogOut, FiArrowUpRight } from 'react-icons/fi';
 import useDebounce from '../hooks/useDebounce';
 import axios from 'axios';
-import { authActions } from '../store/slices/authSlice'; // Import authActions from your authSlice
+import { authActions } from '../store/slices/authSlice';
 
 export default function Navbar() {
-    const [query, setQuery] = useState('');
-    const [filteredUsers, setFilteredUsers] = useState([]);
-    const debouncedQuery = useDebounce(query, 500); // 500ms debounce delay
-    const token = localStorage.getItem('token');
-    const loggedInUser = useSelector((state) => state.auth.user);
-    const isLogged = useSelector((state) => state.auth.isLogged); // Get isLogged from Redux state
-    const dispatch = useDispatch(); // Get dispatch function from useDispatch
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5555';
-
-    useEffect(() => {
-        const searchUsers = async () => {
-            if (!debouncedQuery) {
-                setFilteredUsers([]);
-                return;
-            }
-
-            try {
-                const response = await axios.get(`${apiUrl}/api/user/searchUsers`, {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    },
-                    params: {
-                        query: debouncedQuery
-                    }
-                });
-                setFilteredUsers(response.data);
-            } catch (err) {
-                console.error('Error searching users:', err);
-            }
-        };
-
-        searchUsers();
-    }, [debouncedQuery, token]);
-
-    const handleChange = (event) => {
-        setQuery(event.target.value);
-    };
-
-    const handleUserClick = (user) => {
-        setQuery(`${user.firstName} ${user.lastName}`);
-    };
-
-    const handleLogout = () => {
-        dispatch(authActions.logout()); // Dispatch the logout action
-    };
-
-    return (
-        <div className="relative bg-blue-500">
-            <div className="w-screen flex flex-row items-center p-1 justify-between bg-blue-600 shadow-xs">
-                <div className="ml-8 text-lg text-gray-700 hidden md:flex bg-blue-200 rounded-md">
-                    <img src="http://res.cloudinary.com/dlrs7hrhx/image/upload/v1717888454/Image/drpgo5g4dph4anr1kjvx.png" alt="Logo" className="h-12 w-auto" />
-                </div>
-                { isLogged && <>
-                    <span className="w-screen md:w-1/3 h-10 bg-gray-200 cursor-pointer border border-gray-300 text-sm rounded-full flex">
-                    <input
-                        type="search"
-                        name="search"
-                        placeholder="Search"
-                        className="flex-grow px-4 rounded-l-full rounded-r-full text-sm focus:outline-none"
-                        value={query}
-                        onChange={handleChange}
-                       
-                    />
-                    <i className="fas fa-search m-3 mr-5 text-lg text-gray-700 w-4 h-4"></i>
-                </span>
-                <div className="flex flex-row-reverse mr-4 ml-4 md:hidden">
-                    <i className="fas fa-bars"></i>
-                </div> </>
-                }
-                
-                <div className="flex flex-row-reverse mr-8 hidden md:flex">
-                    {isLogged && (
-                        <Link to="/login" className="rounded-full border border-black text-black-700 text-center bg-blue-200 px-4 py-2 m-2" onClick={handleLogout}>Logout</Link>
-                    )}
-                    {isLogged && (
-                        <Link to="/codeEditor" className="rounded-full border border-black text-black-700 text-center bg-blue-200 px-4 py-2 m-2">Code Editor</Link>
-                    )}
-                    {isLogged && (
-                        <Link to="/chat" className="rounded-full border border-black text-black-700 text-center bg-blue-200 px-4 py-2 m-2">Messages</Link>
-                    )}
-                    {isLogged && (
-                        <Link to="/home" className="rounded-full border border-black text-black-700 text-center bg-blue-200 px-4 py-2 m-2">Home</Link>
-                    )}
-                    {isLogged && (
-                        <Link to={`/dashboard/${loggedInUser?._id}`} className="rounded-full border border-black text-black-700 text-center bg-blue-200 px-4 py-2 m-2">Dashboard</Link>
-                    )}
-                    
-                    
-                </div>
-            </div>
-            {query && filteredUsers.length > 0 && (
-                <div className="z-10 w-screen md:w-1/4 absolute top-16 left-1/2 transform -translate-x-1/2 bg-white shadow-md rounded-lg overflow-hidden ">
-                    <ul>
-                        {filteredUsers.map(user => (
-                            <li key={user._id} className="p-4 border-b border-gray-300 hover:bg-gray-100 flex items-center">
-                                <Link
-                                    to={`/dashboard/${user._id}`}
-                                    className="flex items-center w-full"
-                                    onClick={() => handleUserClick(user)}
-                                >
-                                    <div className="flex-shrink-0 mr-4">
-                                        <img className="h-10 w-10 rounded-full" src={user.picturePath || 'https://via.placeholder.com/40'} alt={`${user.firstName} ${user.lastName}`} />
-                                    </div>
-                                    <div className="text-gray-900 font-semibold">
-                                        {user.firstName} {user.lastName}
-                                    </div>
-                                </Link>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const debouncedQuery = useDebounce(query, 350);
+  const { user, isLogged } = useSelector(state => state.auth);
+  const dispatch = useDispatch();
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5555';
+  useEffect(() => {
+    if (!debouncedQuery.trim() || !isLogged) { setResults([]); return; }
+    const controller = new AbortController();
+    axios.get(`${apiUrl}/api/user/searchUsers`, {
+      params: { query: debouncedQuery }, signal: controller.signal,
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    }).then(response => setResults(response.data)).catch(() => setResults([]));
+    return () => controller.abort();
+  }, [debouncedQuery, isLogged]);
+  return <header className="site-header">
+    <div className="nav-inner">
+      <Link to={isLogged ? '/home' : '/'} className="brand" aria-label="Codosphere home"><span className="brand-mark">c<span>:</span></span>Codosphere<span className="brand-dot">.</span></Link>
+      {isLogged ? <>
+        <nav className="main-nav" aria-label="Main navigation">
+          <NavLink to="/home"><FiGrid /><span>Feed</span></NavLink>
+          <NavLink to="/chat"><FiMessageSquare /><span>Messages</span></NavLink>
+          <NavLink to="/codeEditor"><FiCode /><span>Playground</span></NavLink>
+        </nav>
+        <div className="nav-search"><FiSearch /><input aria-label="Search people" placeholder="Find your people…" value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Escape') setQuery(''); }} />
+          {query && <div className="search-results">
+            <div className="eyebrow">People</div>
+            {results.length ? results.map(person => <Link key={person._id} to={`/dashboard/${person._id}`} onClick={() => setQuery('')}><span className="initial-avatar">{person.firstName?.[0]}{person.lastName?.[0]}</span><span>{person.firstName} {person.lastName}</span><FiArrowUpRight /></Link>) : <p className="muted">No matches yet. Try a name.</p>}
+          </div>}
         </div>
-    );
+        <Link to={`/dashboard/${user?._id}`} className="nav-avatar" aria-label="Your profile">{user?.firstName?.[0]}{user?.lastName?.[0]}</Link>
+        <button className="icon-button logout-button" title="Log out" aria-label="Log out" onClick={() => dispatch(authActions.logout())}><FiLogOut /></button>
+      </> : <Link className="button button-subtle" to="/login">Sign in <FiArrowUpRight /></Link>}
+    </div>
+  </header>;
 }
-

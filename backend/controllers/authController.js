@@ -15,7 +15,6 @@ const User = require('../models/user.js')
       email,
       password,
       picturePath,
-      friends,
       location,
       occupation,
     } = req.body;
@@ -38,7 +37,6 @@ const User = require('../models/user.js')
       email,
       password: passwordHash,
       picturePath,
-      friends,
       location,
       occupation,
 
@@ -46,7 +44,9 @@ const User = require('../models/user.js')
       impressions: Math.floor(Math.random() * 10000),
     });
     const savedUser = await newUser.save();
-    res.status(201).json(savedUser);
+    const safeUser = savedUser.toObject();
+    delete safeUser.password;
+    res.status(201).json(safeUser);
   } catch (err) {
     res.status(500).json({ message: "User already exists" });
   }
@@ -62,7 +62,7 @@ const User = require('../models/user.js')
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: "Invalid credentials. " });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
     user.password="";
     res.status(200).json({ token, user});
   } catch (err) {

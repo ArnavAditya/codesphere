@@ -9,9 +9,6 @@ export default {
 
   theme: {
     extend: {
-      backgroundImage: {
-        'custom-bg': "url('http://res.cloudinary.com/dlrs7hrhx/image/upload/v1717886850/Image/alxv2pikfxqsllpmrq0y.png')",
-      },
       backgroundSize: {
         'auto': 'auto',  
         'cover': 'cover',

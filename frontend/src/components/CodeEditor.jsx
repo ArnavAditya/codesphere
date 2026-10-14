@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import axios from 'axios';
 import { BiCopy } from 'react-icons/bi';
@@ -12,6 +12,17 @@ const CodeEditor = () => {
     const [fontSize, setFontSize] = useState(14);
     const [output, setOutput] = useState('');
     const [customInput, setCustomInput] = useState('');
+    const [runtimes, setRuntimes] = useState([]);
+    const [running, setRunning] = useState(false);
+    const [runtimeError, setRuntimeError] = useState('');
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5555';
+    useEffect(() => {
+        let active = true;
+        axios.get(`${apiUrl}/api/code/runtimes`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+            .then(response => { if (active) setRuntimes(response.data); })
+            .catch(error => { if (active) setRuntimeError(error.response?.data?.message || error.message); });
+        return () => { active = false; };
+    }, []);
     const editorRef = useRef();
     const containerRef = useRef();
     const [editorHeight, setEditorHeight] = useState(70);
@@ -48,31 +59,19 @@ const CodeEditor = () => {
     };
 
     const handleRunCode = async () => {
-        const languageVersionMap = {
-            javascript: '18.15.0',
-            typescript: '5.0.3',
-            python: '3.10.0',
-            java: '15.0.2',
-            csharp: '6.12.0',
-            c: '10.2.0',
-            cpp: '10.2.0',
-        };
-
-        const version = languageVersionMap[language];
-
+        if (running) return;
+        const aliases = language === 'cpp' ? ['cpp', 'c++'] : [language];
+        const runtime = runtimes.find(item => [item.language, ...(item.aliases || [])].some(name => aliases.includes(name)));
+        if (!runtime) { setOutput(runtimeError || 'Selected language is not installed on the execution server'); return; }
+        setRunning(true);
         try {
-            const response = await axios.post('https://emkc.org/api/v2/piston/execute', {
-                language: language,
-                version: version,
-                files: [{ content: code }],
-                stdin: customInput,
-            });
-
-            setOutput(response.data.run.output);
+            const response = await axios.post(`${apiUrl}/api/code/execute`, {
+                language: runtime.language, version: runtime.version, code, stdin: customInput,
+            }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+            setOutput([response.data.compile?.output, response.data.run?.output].filter(Boolean).join('\n') || 'Program completed without output');
         } catch (error) {
-            console.error('Error running code:', error);
-            setOutput('Error running code');
-        }
+            setOutput(error.response?.data?.message || error.message);
+        } finally { setRunning(false); }
     };
 
     const handleMouseDown = (e) => {
@@ -82,7 +81,7 @@ const CodeEditor = () => {
 
     const handleMouseMove = (e) => {
         const containerHeight = containerRef.current.offsetHeight;
-        const newEditorHeight = (e.clientY / containerHeight) * 100;
+        const newEditorHeight = Math.max(20, Math.min(80, ((e.clientY - containerRef.current.getBoundingClientRect().top) / containerHeight) * 100));
         setEditorHeight(newEditorHeight);
     };
 
@@ -92,8 +91,8 @@ const CodeEditor = () => {
     };
 
     return (
-        <div ref={containerRef} className={`w-full h-screen p-4 flex flex-col ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
-            <div className="flex justify-between mb-4">
+        <div ref={containerRef} className={`editor-page w-full min-h-screen p-4 flex flex-col ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
+            <div className="editor-toolbar flex justify-between mb-4">
                 <select
                     value={language}
                     onChange={(e) => setLanguage(e.target.value)}
@@ -120,15 +119,16 @@ const CodeEditor = () => {
                     <button onClick={handleCopyCode} className="p-2 bg-gray-200 rounded">
                         <BiCopy />
                     </button>
-                    <button onClick={handleRunCode} className="p-2 bg-gray-200 rounded">
-                        Run Code
+                    <button disabled={running || !runtimes.length} onClick={handleRunCode} className="p-2 bg-gray-200 rounded">
+                        {running ? 'Running…' : 'Run Code'}
                     </button>
                 </div>
             </div>
+            {runtimeError && <p role="alert">{runtimeError}</p>}
             <div className="flex-grow" style={{ height: `${editorHeight}%` }}>
                 <MonacoEditor
                     height="100%"
-                    language={language}
+                    language={language === 'csharp' ? 'csharp' : language}
                     theme={theme === 'light' ? 'light' : 'vs-dark'}
                     value={code}
                     onChange={handleEditorChange}
@@ -136,7 +136,7 @@ const CodeEditor = () => {
                         fontSize: fontSize,
                         automaticLayout: true,
                     }}
-                    editorDidMount={(editor) => {
+                    onMount={(editor) => {
                         editorRef.current = editor;
                     }}
                 />
@@ -146,7 +146,7 @@ const CodeEditor = () => {
                 className="h-2 bg-gray-400 cursor-row-resize"
             ></div>
             <div className="flex-grow flex mt-4 space-x-4" style={{ height: `${100 - editorHeight - 2}%` }}>
-                <div className={`w-1/2 p-2 ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-black'} rounded resize-y overflow-auto`}>
+                <div className={`editor-pane w-1/2 p-2 ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-black'} rounded resize-y overflow-auto`}>
                     <h2 className="text-lg font-bold">Custom Input:</h2>
                     <button onClick={handleCopyInput} className="p-2 bg-gray-400 rounded">
                         <BiCopy />
@@ -158,7 +158,7 @@ const CodeEditor = () => {
                         rows="4"
                     />
                 </div>
-                <div className={`w-1/2 p-2 ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-black'} rounded resize-y overflow-auto`}>
+                <div className={`editor-pane w-1/2 p-2 ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-black'} rounded resize-y overflow-auto`}>
                     <h2 className="text-lg font-bold">Output:</h2>
                     <button onClick={handleCopyOutput} className="p-2 bg-gray-400 rounded">
                         <BiCopy />

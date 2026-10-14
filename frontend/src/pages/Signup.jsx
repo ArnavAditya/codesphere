@@ -1,3 +1,4 @@
+import AuthLayout from '../components/AuthLayout';
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -6,6 +7,7 @@ const Signup = () => {
   const navigate = useNavigate();
   const [inputs, setInputs] = useState({ firstName: "", lastName: "", password: "", confirmPassword: "", email: "" });
   const [errorMessage, setErrorMessage] = useState("");
+  const [busy, setBusy] = useState(false);
   const [emptyFields, setEmptyFields] = useState([]);
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5555';
 
@@ -31,7 +33,7 @@ const Signup = () => {
     // Highlight empty fields and show alert
     if (emptyFieldsArray.length > 0) {
       setEmptyFields(emptyFieldsArray);
-      alert("Please fill in all the details.");
+      setErrorMessage("Please fill in all the details.");
       return;
     }
 
@@ -41,6 +43,8 @@ const Signup = () => {
       return;
     }
 
+    setBusy(true);
+    setErrorMessage('');
     try {
       await axios.post(`${apiUrl}/api/auth/register`, {
         firstName: inputs.firstName,
@@ -50,122 +54,10 @@ const Signup = () => {
       });
       navigate("/login");
     } catch (error) {
-      if (error.response) {
-        console.log("Status is --> ", error.response.status);
-        alert(error.response.data.message);
-      } else {
-        console.log("Signup request failed --> ", error.message);
-        alert("Unable to reach the server. Please try again.");
-      }
-    }
+      setErrorMessage(error.response?.data?.message || 'Unable to reach the server. Please try again.');
+    } finally { setBusy(false); }
   };
 
-  return (
-    <div className="min-h-screen flex justify-center items-center bg-blue-100 bg-custom-bg bg-cover bg-center bg-fixed overflow-hidden">
-      <div className="max-w-md w-full p-8 bg-blue-200 shadow-md rounded-md">
-        <h2 className="text-2xl font-bold text-center mb-6">Sign Up</h2>
-        <form onSubmit={submit}>
-          <div className="mb-4">
-            <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-              First Name
-            </label>
-            <input
-              type="text"
-              name="firstName"
-              onChange={change}
-              value={inputs.firstName}
-              className={`mt-1 block w-full rounded-md border ${emptyFields.includes('firstName') ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50`}
-              id="firstName"
-              placeholder="Enter your first name"
-            />
-          </div>
-
-          <div className="mb-4">
-            <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-              Last Name
-            </label>
-            <input
-              type="text"
-              name="lastName"
-              onChange={change}
-              value={inputs.lastName}
-              className={`mt-1 block w-full rounded-md border ${emptyFields.includes('lastName') ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50`}
-              id="lastName"
-              placeholder="Enter your last name"
-            />
-          </div>
-
-          <div className="mb-4">
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email
-            </label>
-            <input
-              type="email"
-              name="email"
-              onChange={change}
-              value={inputs.email}
-              className={`mt-1 block w-full rounded-md border ${emptyFields.includes('email') ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50`}
-              id="email"
-              placeholder="Enter your email"
-            />
-          </div>
-
-          <div className="mb-4">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
-            <input
-              type="password"
-              name="password"
-              value={inputs.password}
-              onChange={change}
-              className={`mt-1 block w-full rounded-md border ${emptyFields.includes('password') ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50`}
-              id="password"
-              placeholder="Enter your password"
-            />
-          </div>
-
-          <div className="mb-4">
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={inputs.confirmPassword}
-              onChange={change}
-              className={`mt-1 block w-full rounded-md border ${emptyFields.includes('confirmPassword') ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50`}
-              id="confirmPassword"
-              placeholder="Confirm your password"
-            />
-          </div>
-
-          {errorMessage && (
-            <div className="mb-4 text-red-500 text-sm">
-              {errorMessage}
-            </div>
-          )}
-
-          <button type="submit" className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600">
-            Sign Up
-          </button>
-        </form>
-
-        <div className="text-center mt-4">
-          <p className="text-sm text-gray-600">
-            Already registered? 
-            <button 
-              onClick={() => navigate("/login")} 
-              className="text-blue-500 hover:underline ml-1"
-            >
-              Login
-            </button>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+  return <AuthLayout title="Find your people." subtitle="Create an account and start building your circle."><form onSubmit={submit} className="auth-form"><div className="form-columns">{[['firstName', 'First name', 'given-name'], ['lastName', 'Last name', 'family-name']].map(([name, label, autocomplete]) => <div key={name}><label htmlFor={name}>{label}</label><input id={name} name={name} autoComplete={autocomplete} required minLength={2} value={inputs[name]} onChange={change} placeholder={label} /></div>)}</div><label htmlFor="email">Email address</label><input id="email" name="email" type="email" autoComplete="email" required value={inputs.email} onChange={change} placeholder="you@example.com" /><label htmlFor="password">Password</label><input id="password" name="password" type="password" autoComplete="new-password" required minLength={5} value={inputs.password} onChange={change} placeholder="At least 5 characters" /><label htmlFor="confirmPassword">Confirm password</label><input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" required value={inputs.confirmPassword} onChange={change} placeholder="One more time" />{errorMessage && <p role="alert" className="error-notice">{errorMessage}</p>}<button className="button button-primary" disabled={busy}>{busy ? 'Creating your account…' : 'Create account →'}</button></form><p className="auth-switch">Already part of the community? <button onClick={() => navigate('/login')}>Sign in</button></p></AuthLayout>;
 };
-
 export default Signup;
-

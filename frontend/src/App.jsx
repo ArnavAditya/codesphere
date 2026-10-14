@@ -1,7 +1,7 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Navbar from './components/Navbar';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { authActions } from './store/slices/authSlice.jsx';
 import { useEffect } from 'react';
 import Login from './pages/Login.jsx';
@@ -18,9 +18,8 @@ import CodeEditor from './components/CodeEditor.jsx';
 
 export default function App() {
   const dispatch = useDispatch();
-  const isLogged = (state) => {
-    return state.auth.isLogged;
-  }
+  const user = useSelector(state => state.auth.user);
+  const protectedPage = page => user ? page : localStorage.getItem('token') ? <p>Loading your account…</p> : <Navigate to="/login" replace />;
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5555';
   
   useEffect(() => {
@@ -43,6 +42,8 @@ export default function App() {
         // setUserData(response.data);
         dispatch(authActions.login({user:response.data}));
       } catch (error) {
+        localStorage.removeItem('token');
+        dispatch(authActions.logout());
         console.error(error.message);
       }
     };
@@ -50,19 +51,19 @@ export default function App() {
     fetchUserData();
   }, []);
   return (
-    <div className="h-screen flex flex-col">
+    <div className="app-shell">
       <Router>
         <Navbar />
-        <div className="flex-1 overflow-y-auto">
+        <div className="app-content">
           <Routes>
             <Route exact path='/login' element={<Login />} />
             <Route exact path='/' element={<Signup />} />
-            <Route exact path='/post' element={<Post />} />
-            <Route exact path='/createPost' element={<CreatePostForm />} />
-            <Route exact path='/home' element={<Home />} />
-            <Route exact path='/chat' element={<ChatPage />} />
+            <Route exact path='/post' element={<Navigate to="/home" replace />} />
+            <Route exact path='/createPost' element={protectedPage(<CreatePostForm />)} />
+            <Route exact path='/home' element={protectedPage(<Home />)} />
+            <Route exact path='/chat' element={protectedPage(<ChatPage />)} />
             <Route exact path='/dashboard/:id' element={<Dashboard />} />
-            <Route exact path='/codeEditor' element={<CodeEditor />} />
+            <Route exact path='/codeEditor' element={protectedPage(<CodeEditor />)} />
           </Routes>
         </div>
       </Router>

@@ -19,12 +19,6 @@ const ChatPreview = ({ chat }) => {
     chatName = `${chat.firstName} ${chat.lastName}`;
   }
 
-  return (
-    <div className="p-2 bg-white shadow rounded-lg mb-2 ">
-      <h3 className="font-semibold">{chatName}</h3>
-      {isChat && <p className="text-gray-600">{latestMessage}</p>}
-    </div>
-  );
+  return <div className="chat-preview"><span className="initial-avatar">{chatName?.slice(0, 2).toUpperCase()}</span><div><h3>{chatName}</h3><p>{isChat ? latestMessage : 'Start a conversation'}</p></div></div>;
 };
-
 export default ChatPreview;

@@ -1,8 +1,12 @@
 const multer =require('multer');
+const path = require('path');
+const fs = require('fs');
+const directory = path.join(__dirname, 'uploads');
+fs.mkdirSync(directory, { recursive: true });
 
 const storage=multer.diskStorage({
 destination: function(req,file,cb){
-    cb(null,'./uploads/')
+    cb(null,directory)
 },
 filename:function(req,file,cb){
     cb(null,Date.now()+'-'+file.originalname )
@@ -15,13 +19,13 @@ const fileFilter=(req,file,cb)=>{
         cb(null,true) 
     }
     else{
-        cb({message:'Unsupported File Format'},false)
+        cb(new Error('Unsupported File Format'),false)
     }
 }
 
 const upload=multer({
     storage:storage,
-    limits:{fileSize:1024*1024*1024},
+    limits:{fileSize:10*1024*1024},
     fileFilter:fileFilter
 })
 

@@ -1,11 +1,13 @@
+import useDialog from '../hooks/useDialog';
 
 import React, { useState } from 'react';
+import { FiImage, FiSmile, FiX, FiPlus, FiSend } from 'react-icons/fi';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import Picker from '@emoji-mart/react';
 import data from '@emoji-mart/data';
 
-const CreatePostForm = () => {
+const CreatePostForm = ({ onCreated }) => {
     const user = useSelector((state) => state.auth.user);
     const token = localStorage.getItem('token');
 
@@ -18,223 +20,40 @@ const CreatePostForm = () => {
     const [uploadError, setUploadError] = useState(null);
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5555';
 
-    // useEffect for cleanup
-    React.useEffect(() => {
-        // Cleanup function to revoke object URLs when component unmounts
-        return () => {
-            previews.forEach(preview => URL.revokeObjectURL(preview));
-        };
-    }, [previews]);
-
-    const openModal = () => {
-        setIsOpen(true);
-    };
-
-    const closeModal = () => {
-        setIsOpen(false);
-    };
-
-    const change = (e) => {
-        const { name, value } = e.target;
-        setInputs({ ...inputs, [name]: value });
-    };
-
-    const addEmoji = (emoji) => {
-        setInputs({ ...inputs, desc: inputs.desc + emoji.native });
-        setShowEmojiPicker(false);
-    };
-
+    const [isPosting, setIsPosting] = useState(false);
+    React.useEffect(() => () => previews.forEach(preview => URL.revokeObjectURL(preview)), [previews]);
+    const openModal = () => setIsOpen(true);
+    const closeModal = () => { if (!isUploading && !isPosting) setIsOpen(false); };
+    useDialog(isOpen, closeModal);
+    const change = e => setInputs(previous => ({ ...previous, [e.target.name]: e.target.value }));
+    const addEmoji = emoji => { setInputs(previous => ({ ...previous, desc: previous.desc + emoji.native })); setShowEmojiPicker(false); };
     const handlePost = async () => {
-        try {
-            const url = `${apiUrl}/api/post/create`;
-            await axios.post(url, {
-                userId: user._id,
-                description: inputs.desc,
-                picturePath: picPath
-            }, {
-                headers: {
-                    Authorization: `Bearer ${token}` // Attach JWT token to the request
-                }
-            });
-            setInputs({ desc: "" });
-            setPreviews([]);
-            setIsOpen(false);
-        } catch (error) {
-            console.log(error);
-        }
-    };
-
-    // const handleImageUpload = async (event) => {
-    //     const files = Array.from(event.target.files);
-    //     if (files.length === 0) return;
-
-    //     const formData = new FormData();
-    //     files.forEach(file => {
-    //         formData.append('image', file);
-    //     });
-
-    //     // Preview selected images
-    //     const newPreviews = files.map(file => URL.createObjectURL(file));
-    //     setPreviews([...previews, ...newPreviews]);
-
-    //     try {
-    //         const uploadUrl = 'http://localhost:5555/upload-images';
-    //         const response = await axios.post(uploadUrl, formData, {
-    //             headers: {
-    //                 'Content-Type': 'multipart/form-data',
-    //                 Authorization: `Bearer ${token}` // Attach JWT token to the request
-    //             }
-    //         });
-    //         const newPicPaths = response.data.data.map(image => image.url);
-    //         setPicPath(newPicPaths[0]);
-    //         setInputs({ ...inputs, picPaths: [...inputs.picPaths, ...newPicPaths] });
-    //     } catch (error) {
-    //         console.log(error);
-    //     }
-    // };
-    const handleImageUpload = async (event) => {
-        // Reset error state
+        if (isUploading || isPosting || !user) return;
+        setIsPosting(true);
         setUploadError(null);
-
-        // The backend post model only stores a single picturePath, so only
-        // the first selected file is used even if more were picked.
+        try {
+            await axios.post(`${apiUrl}/api/post/create`, { description: inputs.desc, picturePath: picPath }, { headers: { Authorization: `Bearer ${token}` } });
+            setInputs({ desc: '' }); setPreviews([]); setPicPath(''); setIsOpen(false); onCreated?.();
+        } catch (error) { setUploadError(error.response?.data?.message || 'Could not share your post. Please try again.'); }
+        finally { setIsPosting(false); }
+    };
+    const handleImageUpload = async event => {
         const file = event.target.files[0];
         if (!file) return;
-
-        // Set uploading state
-        setIsUploading(true);
-
-        const formData = new FormData();
-        formData.append('image', file);
-
-        // Preview the selected image, replacing any previous one
-        previews.forEach(preview => URL.revokeObjectURL(preview));
-        const newPreview = URL.createObjectURL(file);
-        setPreviews([newPreview]);
-
+        setIsUploading(true); setUploadError(null); setPicPath('');
+        setPreviews([URL.createObjectURL(file)]);
+        const formData = new FormData(); formData.append('image', file);
         try {
-            // Validate token before attempting upload
-            if (!token) {
-                throw new Error("Authentication token missing");
-            }
-
-            const uploadUrl = `${apiUrl}/upload-images`;
-            const response = await axios.post(uploadUrl, formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                    Authorization: `Bearer ${token}`
-                }
-            });
-
-            // Validate response
-            if (!response.data || !response.data.data || !Array.isArray(response.data.data)) {
-                throw new Error("Invalid server response");
-            }
-
-            const newPicPaths = response.data.data.map(image => image.url);
-
-            if (newPicPaths.length > 0) {
-                setPicPath(newPicPaths[0]);
-            } else {
-                throw new Error("No image was uploaded");
-            }
-        } catch (error) {
-            console.error("Image upload error:", error);
-            setUploadError(error.message || "Failed to upload image");
-
-            // Remove the preview for the failed upload
-            URL.revokeObjectURL(newPreview);
-            setPreviews([]);
-        } finally {
-            setIsUploading(false);
-        }
+            const response = await axios.post(`${apiUrl}/upload-images`, formData, { headers: { Authorization: `Bearer ${token}` } });
+            const url = response.data?.data?.[0]?.url;
+            if (!url) throw new Error('The image could not be uploaded');
+            setPicPath(url);
+        } catch (error) { setUploadError(error.response?.data?.message || error.message); setPreviews([]); }
+        finally { setIsUploading(false); event.target.value = ''; }
     };
-
-    return (
-        <div className="flex justify-center items-center ">
-            <div
-                onClick={openModal}
-                className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl w-11/12 md:w-3/4 lg:w-1/2 xl:w-1/3 cursor-pointer text-center border border-black-500 shadow-lg"
-            >
-                What's on your mind?
-            </div>
-
-            {isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                    <div className="bg-white w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 p-6 rounded shadow-lg">
-                        <div className="heading text-center font-bold text-2xl m-5 text-gray-800">New Post</div>
-                        <div className="editor mx-auto w-full flex flex-col text-gray-800 border border-gray-300 p-4 shadow-lg">
-                            <textarea className="description bg-gray-100 sec p-3 h-60 border border-gray-300 outline-none" spellCheck="false" placeholder="Describe everything about this post here" value={inputs.desc} onChange={change} name='desc' maxLength={300}></textarea>
-                            <div className="icons flex text-gray-500 m-2">
-                                <svg
-                                    className="mr-2 cursor-pointer hover:text-gray-700 border rounded-full p-1 h-7"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                {showEmojiPicker && (
-                                    <div className="emoji-picker absolute bg-white border border-gray-300 p-2 rounded shadow-lg z-50">
-                                        <Picker data={data} onEmojiSelect={addEmoji} />
-                                    </div>
-                                )}
-                                <svg
-                                    className="mr-2 cursor-pointer hover:text-gray-700 border rounded-full p-1 h-7"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    onClick={() => document.getElementById('fileInput').click()}
-                                >
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                                </svg>
-                                <input
-                                    type="file"
-                                    id="fileInput"
-                                    name="image"
-                                    style={{ display: 'none' }}
-                                    onChange={handleImageUpload}
-                                    disabled={isUploading}
-                                />
-                                {isUploading && (
-                                    <div className="ml-2 text-blue-500 text-sm">Uploading images...</div>
-                                )}
-                                {uploadError && (
-                                    <div className="ml-2 text-red-500 text-sm">{uploadError}</div>
-                                )}
-
-                                <div className="count ml-auto text-gray-400 text-xs font-semibold">{inputs.desc.length}/300</div>
-                            </div>
-                            <div className="image-previews flex flex-wrap">
-                                {previews.map((preview, index) => (
-                                    <img key={index} src={preview} alt="preview" className="h-20 w-20 object-cover m-2" />
-                                ))}
-                            </div>
-
-                            {/* <div className="buttons flex">
-                                <div onClick={closeModal} className="btn border border-gray-300 p-1 px-4 font-semibold cursor-pointer text-gray-500 ml-auto">Cancel</div>
-                                <div onClick={handlePost} className="btn border border-indigo-500 p-1 px-4 font-semibold cursor-pointer text-gray-200 ml-2 bg-indigo-500">Post</div>
-                            </div> */}
-
-                            <div className="buttons flex">
-                                <div onClick={closeModal} className="btn border border-gray-300 p-1 px-4 font-semibold cursor-pointer text-gray-500 ml-auto">Cancel</div>
-                                <div 
-                                    onClick={isUploading ? null : handlePost} 
-                                    className={`btn border border-indigo-500 p-1 px-4 font-semibold cursor-pointer text-gray-200 ml-2 bg-indigo-500 ${isUploading ? 'opacity-50' : ''}`}
-                                >
-                                    {isUploading ? 'Uploading...' : 'Post'}
-                                </div>
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
+    return <>
+        <button onClick={openModal} className="surface feed-composer"><span className="initial-avatar">{user?.firstName?.[0]}{user?.lastName?.[0]}</span><span>What are you working on, {user?.firstName || 'developer'}?</span><span className="composer-plus"><FiPlus /></span></button>
+        {isOpen && <div className="modal-backdrop" onClick={closeModal}><section className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="new-post-heading" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') closeModal(); }}><div className="modal-heading"><div><p className="eyebrow">SHARE A LITTLE PROGRESS</p><h2 id="new-post-heading">Create a post</h2></div><button className="icon-button" onClick={closeModal} aria-label="Close post form"><FiX /></button></div><div className="post-header"><span className="initial-avatar">{user?.firstName?.[0]}</span><div><strong>{user?.firstName} {user?.lastName}</strong><p className="muted">Sharing with your circle</p></div></div><textarea className="post-textarea" aria-label="Post text" placeholder="A small win, a big idea, a question…" value={inputs.desc} onChange={change} name="desc" maxLength={300} /><div className="image-previews">{previews.map((preview, index) => <img key={index} src={preview} alt="Selected image preview" />)}</div><div className="composer-toolbar"><div><button className="icon-button" aria-label="Attach an image" onClick={() => document.getElementById('post-image-input').click()} disabled={isUploading}><FiImage /></button><button className="icon-button" aria-label="Choose emoji" onClick={() => setShowEmojiPicker(!showEmojiPicker)}><FiSmile /></button></div><span className="muted">{inputs.desc.length}/300</span></div><input id="post-image-input" type="file" accept="image/jpeg,image/png" hidden onChange={handleImageUpload} disabled={isUploading} />{showEmojiPicker && <div className="emoji-picker"><Picker data={data} onEmojiSelect={addEmoji} /></div>}{uploadError && <p className="error-notice" role="alert">{uploadError}</p>}<div className="modal-footer"><span className="muted">{isUploading ? 'Uploading your image…' : 'Make someone’s day. Share something.'}</span><button className="button button-primary" onClick={handlePost} disabled={isUploading || isPosting || (!inputs.desc.trim() && !picPath)}><FiSend /> {isPosting ? 'Sharing...' : 'Share post'}</button></div></section></div>}
+    </>;
 };
-
 export default CreatePostForm;

@@ -1,7 +1,15 @@
 export const fetchData = async (codeForcesHandle) => {
     const response = await fetch(`https://codeforces.com/api/user.status?handle=${codeForcesHandle}`);
     const data = await response.json();
-    return data.result.filter(submission => submission.verdict === 'OK');
+    if (!response.ok || data.status !== 'OK' || !Array.isArray(data.result)) {
+      throw new Error(data.comment || 'Could not fetch Codeforces submissions');
+    }
+    const solved = new Map();
+    data.result.filter(submission => submission.verdict === 'OK').forEach(submission => {
+      const problem = submission.problem;
+      solved.set(`${problem.contestId ?? submission.contestId}:${problem.index}`, submission);
+    });
+    return [...solved.values()];
   };
   
   export const processChartData = (submissions) => {

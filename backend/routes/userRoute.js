@@ -5,6 +5,10 @@ const { verifyToken } = require("../middleware/authMiddleware.js");
 
 const router = express.Router();
 
+const requests = require('../controllers/friendRequestController');
+router.get('/requests', verifyToken, requests.list);
+router.post('/requests/:userId', verifyToken, requests.send);
+router.patch('/requests/:requestId', verifyToken, requests.decide);
 /* READ */
 // router.get("/:id", verifyToken, getUser);
 router.get("/getUserByjwt", verifyToken, getUserByjwt);

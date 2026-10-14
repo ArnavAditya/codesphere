@@ -1,201 +1,14 @@
-
-
-// import React, { useState, useEffect } from 'react';
-// import axios from 'axios';
-// import { useSelector } from 'react-redux';
-// import { FaUserPlus, FaUserMinus } from 'react-icons/fa';
-
-// const Post = ({ post }) => {
-//     const user = useSelector((state) => state.auth.user);
-//     const [likes, setLikes] = useState(post.likes.length);
-//     const [isLiked, setIsLiked] = useState(post.likes.includes(user._id));
-//     const [isFriend, setIsFriend] = useState(user.friends.includes(post.userId));
-//     const [showCommentsModal, setShowCommentsModal] = useState(false);
-//     const [newCommentContent, setNewCommentContent] = useState('');
-//     const [comments, setComments] = useState(post.comments);
-//     const [replyingTo, setReplyingTo] = useState(null); // Keep track of the comment being replied to
-//     const token = localStorage.getItem('token');
-
-//     const handleClickLike = async () => {
-//         try {
-//             const url = `http://localhost:5555/api/post/${post._id}/like`;
-//             const response = await axios.patch(url, {}, {
-//                 headers: {
-//                     Authorization: `Bearer ${token}`
-//                 }
-//             });
-
-//             if (response.status === 200) {
-//                 setIsLiked(!isLiked);
-//                 setLikes(prevLikes => isLiked ? prevLikes - 1 : prevLikes + 1);
-//             }
-//         } catch (error) {
-//             console.error('Error liking the post:', error);
-//         }
-//     };
-
-//     const handleAddRemoveFriend = async () => {
-//         try {
-//             const url = `http://localhost:5555/api/user/${user._id}/${post.userId}`;
-//             const response = await axios.patch(url, {}, {
-//                 headers: {
-//                     Authorization: `Bearer ${token}`
-//                 }
-//             });
-
-//             if (response.status === 200) {
-//                 setIsFriend(!isFriend);
-//             }
-//         } catch (error) {
-//             console.error('Error adding/removing friend:', error);
-//         }
-//     };
-
-//     const buttonStyle = {
-//         color: 'black',
-//         cursor: 'pointer',
-//         marginLeft: '5px',
-//     };
-
-//     const formattedDate = new Date(post.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-//     const ms = Date.now() - new Date("2024-04-14T20:17:27.310Z");
-//     const hrs = ms / 36e5;
-//     const timeAgo = hrs < 24 ? `${Math.round(hrs)} hr` : hrs < 168 ? `${Math.round(hrs / 24)} d` : hrs < 720 ? `${Math.round(hrs / 168)} w` : hrs < 8760 ? `${Math.round(hrs / 720)} mo` : `${Math.round(hrs / 8760)} yr`;
-
-//     const handleShowComments = () => {
-//         setShowCommentsModal(true);
-//     };
-
-//     const handleHideComments = () => {
-//         setShowCommentsModal(false);
-//         setReplyingTo(null);
-//     };
-
-//     const fetchComments = async () => {
-//         try {
-//             const response = await axios.get(`http://localhost:5555/api/post/${post._id}/comments`, {
-//                 headers: {
-//                     Authorization: `Bearer ${token}`
-//                 }
-//             });
-//             setComments(response.data.comments);
-//         } catch (error) {
-//             console.error('Error fetching comments:', error);
-//         }
-//     };
-
-//     useEffect(() => {
-//         if (showCommentsModal) {
-//             fetchComments();
-//         }
-//     }, [showCommentsModal]);
-
-//     const handleCreateComment = async () => {
-//         try {
-//             const response = await axios.post(`http://localhost:5555/api/post/${post._id}/comment`, {
-//                 content: newCommentContent,
-//                 userId: user._id,
-//                 firstName: user.firstName,
-//                 lastName: user.lastName,
-//                 parentId: replyingTo ? replyingTo._id : null,
-//             }, {
-//                 headers: {
-//                     Authorization: `Bearer ${token}`
-//                 }
-//             });
-//             setNewCommentContent('');
-//             setReplyingTo(null);
-//             fetchComments();
-//         } catch (error) {
-//             console.error('Error creating comment:', error);
-//         }
-//     };
-
-//     const handleReply = (comment) => {
-//         setReplyingTo(comment);
-//         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-//     };
-
-//     const renderComments = (parentId = null, depth = 0) => {
-//         const filteredComments = comments.filter(comment => comment.parentId === parentId);
-    
-//         if (filteredComments.length === 0) {
-//             return null;
-//         }
-    
-//         return filteredComments.map(comment => (
-//             <div key={comment._id} className={`bg-gray-200 p-2 rounded-md mb-2 ${depth > 0 ? `ml-${depth * 2}` : ''} ${replyingTo === comment ? 'border-l-2 border-blue-500 pl-2' : ''}`}>
-//                 <b><p className="text-black">{comment.firstName} {comment.lastName}</p></b>
-//                 <p className="text-gray-800">{comment.content}</p>
-//                 <button onClick={() => handleReply(comment)} className="text-blue-500 text-sm">Reply</button>
-//                 {/* Add white space between comments and replies */}
-//                 <div style={{ marginTop: '10px' }} />
-//                 {renderComments(comment._id, depth + 1)}
-//             </div>
-//         ));
-//     };
-    
-
-//     return (
-//         <div className="flex bg-blue-300 shadow-lg rounded-lg mx-4 md:mx-auto my-56 max-w-md md:max-w-2xl">
-//             <div className="flex items-start px-4 py-6">
-//                 <img className="w-12 h-12 rounded-full object-cover mr-4 shadow" src="https://icon-library.com/images/anonymous-avatar-icon/anonymous-avatar-icon-25.jpg" alt="avatar" />
-//                 <div className="">
-//                     <div className="flex items-center ">
-//                         <h2 className="text-lg font-semibold text-gray-900 -mt-1">{post.firstName + " " + post.lastName} </h2>
-//                         <button style={{ color: 'black', cursor: 'pointer', marginLeft: '5px' }} onClick={handleAddRemoveFriend}>
-//                             {isFriend ? <FaUserMinus /> : <FaUserPlus />}
-//                         </button>
-//                     </div>
-//                     <p className="text-gray-700">{formattedDate} </p>
-//                     <img src={post.picturePath} alt="postPic" />
-//                     <p className="mt-3 text-gray-700 text-sm">{post.description}</p>
-//                     <div className="mt-4 flex items-center">
-//                         <div style={{ marginRight: '10px' }}>
-//                             <svg fill={isLiked ? 'red' : 'none'} viewBox="0 0 24 24" className="w-6 h-6 mr-1 cursor-pointer" onClick={handleClickLike} stroke="currentColor">
-//                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-//                             </svg>
-//                             <span>{likes}</span>
-//                         </div>
-//                         <div style={{ marginRight: '10px' }} className="cursor-pointer" onClick={handleShowComments}>
-//                             <svg fill="none" viewBox="0 0 24 24" className="w-6 h-6 mr-1" stroke="currentColor">
-//                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
-//                             </svg>
-//                             <span>{comments.length}</span>
-//                         </div>
-//                         {showCommentsModal && (
-//                             <div className="fixed top-0 left-0 z-50 w-full h-full bg-gray-800 bg-opacity-50 flex items-center justify-center">
-//                                 <div className="bg-white rounded-lg p-4 w-3/4">
-//                                     <div className="flex justify-between mb-4">
-//                                         <h2 className="text-lg font-semibold">Comments</h2>
-//                                         <button onClick={handleHideComments} className="text-blue-500 hover:text-blue-700" > Close</button>
-//                                     </div>
-//                                     <div className="overflow-y-auto max-h-80">
-//                                         {renderComments()}
-//                                     </div>
-//                                     <div className="mt-4">
-//                                         <input type="text" value={newCommentContent} onChange={(e) => setNewCommentContent(e.target.value)} placeholder="Add a comment..." className="w-full border rounded-md py-2 px-3" />
-//                                         <button onClick={handleCreateComment} className="mt-2 bg-blue-500 text-white px-4 py-2 rounded-md">Post</button>
-//                                     </div>
-//                                 </div>
-//                             </div>
-//                         )}
-//                     </div>
-//                 </div>
-//             </div>
-//         </div>
-//     );
-// };
-
-// export default Post;
-
-import React, { useState, useEffect } from 'react';
+import useDialog from '../hooks/useDialog';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useSelector } from 'react-redux';
-import { FaUserPlus, FaUserMinus } from 'react-icons/fa';
+import { FiHeart, FiMessageSquare, FiArrowUpRight, FiX, FiCornerDownRight } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom'; // Import the useHistory hook
 
 const Post = ({ post }) => {
+    const commentInput = useRef(null);
+    const [actionError, setActionError] = useState('');
+    const [liking, setLiking] = useState(false);
     const navigate = useNavigate(); // Initialize useHistory hook
     const user = useSelector((state) => state.auth.user);
     const [likes, setLikes] = useState(post.likes.length);
@@ -209,6 +22,9 @@ const Post = ({ post }) => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5555';
 
     const handleClickLike = async () => {
+        if (liking) return;
+        setLiking(true);
+        setActionError('');
         try {
             const url = `${apiUrl}/api/post/${post._id}/like`;
             const response = await axios.patch(url, {}, {
@@ -222,26 +38,13 @@ const Post = ({ post }) => {
                 setLikes(prevLikes => isLiked ? prevLikes - 1 : prevLikes + 1);
             }
         } catch (error) {
-            console.error('Error liking the post:', error);
+            setActionError('Could not update your like. Please try again.');
+        } finally {
+            setLiking(false);
         }
     };
 
-    const handleAddRemoveFriend = async () => {
-        try {
-            const url = `${apiUrl}/api/user/${user._id}/${post.userId}`;
-            const response = await axios.patch(url, {}, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-
-            if (response.status === 200) {
-                setIsFriend(!isFriend);
-            }
-        } catch (error) {
-            console.error('Error adding/removing friend:', error);
-        }
-    };
+    const handleAddRemoveFriend = () => navigate(`/dashboard/${post.userId}`);
 
     const handleNavigateToDashboard = () => {
     navigate(`/dashboard/${post.userId}`);
@@ -254,7 +57,7 @@ const Post = ({ post }) => {
     };
 
     const formattedDate = new Date(post.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    const ms = Date.now() - new Date("2024-04-14T20:17:27.310Z");
+    const ms = Date.now() - new Date(post.createdAt);
     const hrs = ms / 36e5;
     const timeAgo = hrs < 24 ? `${Math.round(hrs)} hr` : hrs < 168 ? `${Math.round(hrs / 24)} d` : hrs < 720 ? `${Math.round(hrs / 168)} w` : hrs < 8760 ? `${Math.round(hrs / 720)} mo` : `${Math.round(hrs / 8760)} yr`;
 
@@ -267,6 +70,8 @@ const Post = ({ post }) => {
         setReplyingTo(null);
     };
 
+    useDialog(showCommentsModal, handleHideComments);
+
     const fetchComments = async () => {
         try {
             const response = await axios.get(`${apiUrl}/api/post/${post._id}/comments`, {
@@ -276,7 +81,7 @@ const Post = ({ post }) => {
             });
             setComments(response.data.comments);
         } catch (error) {
-            console.error('Error fetching comments:', error);
+            setActionError('Could not load comments. Please try again.');
         }
     };
 
@@ -303,27 +108,27 @@ const Post = ({ post }) => {
             setReplyingTo(null);
             fetchComments();
         } catch (error) {
-            console.error('Error creating comment:', error);
+            setActionError('Could not post your comment. Please try again.');
         }
     };
 
     const handleReply = (comment) => {
         setReplyingTo(comment);
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        commentInput.current?.focus();
     };
 
     const renderComments = (parentId = null, depth = 0) => {
-        const filteredComments = comments.filter(comment => comment.parentId === parentId);
+        const filteredComments = comments.filter(comment => (comment.parentId ?? null) === parentId);
 
         if (filteredComments.length === 0) {
             return null;
         }
 
         return filteredComments.map(comment => (
-            <div key={comment._id} className={`bg-gray-200 p-2 rounded-md mb-2 ${depth > 0 ? `ml-${depth * 2}` : ''} ${replyingTo === comment ? 'border-l-2 border-blue-500 pl-2' : ''}`}>
+            <div key={comment._id} className={`comment-item ${depth > 0 ? 'ml-4' : ''} ${replyingTo === comment ? 'border-l-2 border-blue-500 pl-2' : ''}`}>
                 <b><p className="text-black">{comment.firstName} {comment.lastName}</p></b>
                 <p className="text-gray-800">{comment.content}</p>
-                <button onClick={() => handleReply(comment)} className="text-blue-500 text-sm">Reply</button>
+                <button onClick={() => handleReply(comment)} className="text-link">Reply</button>
                 {/* Add white space between comments and replies */}
                 <div style={{ marginTop: '10px' }} />
                 {renderComments(comment._id, depth + 1)}
@@ -331,57 +136,13 @@ const Post = ({ post }) => {
         ));
     };
 
-    return (
-        <div className="flex bg-blue-300 shadow-lg rounded-lg mx-4 md:mx-auto my-56 max-w-md md:max-w-2xl">
-            <div className="flex items-start px-4 py-6">
-                <img className="w-12 h-12 rounded-full object-cover mr-4 shadow" src="https://icon-library.com/images/anonymous-avatar-icon/anonymous-avatar-icon-25.jpg" alt="avatar" />
-                <div className="">
-                    <div className="flex items-center ">
-                        <h2 className="text-lg font-semibold text-gray-900 -mt-1" onClick={handleNavigateToDashboard} style={{ cursor: 'pointer' }}>
-                            {post.firstName + " " + post.lastName}
-                        </h2>
-                        {/* <button style={{ color: 'black', cursor: 'pointer', marginLeft: '5px' }} onClick={handleAddRemoveFriend}>
-                            {isFriend ? <FaUserMinus /> : <FaUserPlus />}
-                        </button> */}
-                    </div>
-                    <p className="text-gray-700">{formattedDate} </p>
-                    <img src={post.picturePath} alt="postPic" />
-                    <p className="mt-3 text-gray-700 text-sm">{post.description}</p>
-                    <div className="mt-4 flex items-center">
-                        <div style={{ marginRight: '10px' }}>
-                            <svg fill={isLiked ? 'red' : 'none'} viewBox="0 0 24 24" className="w-6 h-6 mr-1 cursor-pointer" onClick={handleClickLike} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                            </svg>
-                            <span>{likes}</span>
-                        </div>
-                        <div style={{ marginRight: '10px' }} className="cursor-pointer" onClick={handleShowComments}>
-                            <svg fill="none" viewBox="0 0 24 24" className="w-6 h-6 mr-1" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
-                            </svg>
-                            <span>{comments.length}</span>
-                        </div>
-                        {showCommentsModal && (
-                            <div className="fixed top-0 left-0 z-50 w-full h-full bg-gray-800 bg-opacity-50 flex items-center justify-center">
-                                <div className="bg-white rounded-lg p-4 w-3/4">
-                                    <div className="flex justify-between mb-4">
-                                        <h2 className="text-lg font-semibold">Comments</h2>
-                                        <button onClick={handleHideComments} className="text-blue-500 hover:text-blue-700">Close</button>
-                                    </div>
-                                    <div className="overflow-y-auto max-h-80">
-                                        {renderComments()}
-                                    </div>
-                                    <div className="mt-4">
-                                        <input type="text" value={newCommentContent} onChange={(e) => setNewCommentContent(e.target.value)} placeholder="Add a comment..." className="w-full border rounded-md py-2 px-3" />
-                                        <button onClick={handleCreateComment} className="mt-2 bg-blue-500 text-white px-4 py-2 rounded-md">Post</button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+    return <article className="surface post-card">
+        <header className="post-header"><button className="initial-avatar" onClick={handleNavigateToDashboard} aria-label={`View ${post.firstName}'s profile`}>{post.firstName?.[0]}{post.lastName?.[0]}</button><div><button className="post-author" onClick={handleNavigateToDashboard}>{post.firstName} {post.lastName}</button><p className="muted" title={formattedDate}>{timeAgo} ago {post.location && `· ${post.location}`}</p></div><button className="icon-button" onClick={handleNavigateToDashboard} aria-label="View author profile"><FiArrowUpRight /></button></header>
+        <p className="post-body">{post.description}</p>
+        {post.picturePath && <img className="post-image" src={post.picturePath} alt="Image shared in this post" loading="lazy" />}
+        {actionError && !showCommentsModal && <p role="alert" className="error-notice">{actionError}</p>}
+        <footer className="post-actions"><button className={isLiked ? 'liked' : ''} disabled={liking} aria-pressed={isLiked} onClick={handleClickLike}><FiHeart fill={isLiked ? 'currentColor' : 'none'} /> {likes} <span>Likes</span></button><button onClick={handleShowComments}><FiMessageSquare /> {comments.length} <span>Comments</span></button><span className="post-category">Community</span></footer>
+        {showCommentsModal && <div className="modal-backdrop" onClick={handleHideComments}><section className="modal-panel" role="dialog" aria-modal="true" aria-labelledby={`comments-${post._id}`} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') handleHideComments(); }}><div className="modal-heading"><div><p className="eyebrow">KEEP THE CONVERSATION GOING</p><h2 id={`comments-${post._id}`}>Comments <span className="count-badge">{comments.length}</span></h2></div><button className="icon-button" onClick={handleHideComments} aria-label="Close comments"><FiX /></button></div>{actionError && <p role="alert" className="error-notice">{actionError}</p>}<div className="comments-list">{comments.length ? renderComments() : <div className="empty-state"><FiMessageSquare /><p>Be the first to join in.</p></div>}</div>{replyingTo && <div className="reply-indicator"><FiCornerDownRight /> Replying to {replyingTo.firstName}<button onClick={() => setReplyingTo(null)} aria-label="Cancel reply"><FiX /></button></div>}<form className="comment-composer" onSubmit={e => { e.preventDefault(); if (newCommentContent.trim()) handleCreateComment(); }}><input ref={commentInput} aria-label="Your comment" value={newCommentContent} onChange={e => setNewCommentContent(e.target.value)} placeholder="Add your thoughts…" /><button className="button button-primary" disabled={!newCommentContent.trim()}>Post</button></form></section></div>}
+    </article>;
 };
-
 export default Post;

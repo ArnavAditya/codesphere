@@ -65,7 +65,7 @@ const AddForcesHandle = () => {
     };
 
     return (
-        <div className="max-w-md mx-auto mt-10 p-6 bg-white shadow-md rounded-lg">
+        <div className="surface chart-card">
             <label
                 htmlFor="codeforces-handle"
                 className="block text-gray-700 text-sm font-bold mb-2"
@@ -82,7 +82,7 @@ const AddForcesHandle = () => {
             />
             {!verified && <button
                 onClick={handleVerify}
-                className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                className="button button-primary mt-4"
             >
                 Verify
             </button>}
@@ -116,7 +116,7 @@ const AddForcesHandle = () => {
                     />
                     {verified && <button
                         onClick={handleSubmit}
-                        className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                        className="button button-primary mt-4"
                     >
                         Submit
                     </button>}

@@ -1,34 +1,8 @@
-// const jwt = require("jsonwebtoken");
-// const User = require("../models/user");
-
-
-// const verifyToken = async (req, res, next) => {
-//   try {
-//     let token = req.header("Authorization");
-
-//     if (!token) {
-//       return res.status(403).send("Access Denied");
-//     }
-
-//     if (token.startsWith("Bearer ")) {
-//       token = token.slice(7, token.length).trimLeft();
-//     }
-
-//     const verified = await jwt.verify(token, process.env.JWT_SECRET);
-
-//     req.user = verified;
-
-//     next();
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// };
-
-// module.exports = {verifyToken} ;
 const jwt = require("jsonwebtoken");
 require('dotenv').config();
 
-const verifyToken = (req, res, next) => {
+const User = require("../models/user");
+const verifyToken = async (req, res, next) => {
   const authHeader = req.header("Authorization");
 
   if (!authHeader) {
@@ -39,10 +13,11 @@ const verifyToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!await User.exists({ _id: decoded.id })) return res.status(401).json({ error: "User no longer exists" });
     req.user = { id: decoded.id };
     next();
   } catch (ex) {
-    res.status(400).send({ error: "Invalid token." });
+    res.status(401).send({ error: "Invalid token." });
   }
 };
 
